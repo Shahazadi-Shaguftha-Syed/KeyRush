@@ -15,33 +15,33 @@ const wpmEl = document.getElementById("wpm");
 const cpmEl = document.getElementById("cpm");
 const displayWPM = document.getElementById("displayWPM");
 const tryAgainBtn = document.getElementById("tryAgain");
-// ====== State ======
-const TOTAL_TIME = 60; // seconds
+
+const TOTAL_TIME = 60; 
 let timerInterval = null;
 let timeLeft = TOTAL_TIME;
 let isTiming = false;
 let currentText = "";
 let startTime = null;
 
-// ====== Helpers ======
+
 function loadRandomText() {
   const idx = Math.floor(Math.random() * paragraphs.length);
   currentText = paragraphs[idx];
-  // show full text (unhighlighted)
   testTextEl.innerHTML = escapeHtml(currentText);
-  // reset typing area
   typingArea.value = "";
   typingArea.disabled = false;
   typingArea.focus();
   resetStats();
 }
-// Escape HTML to safely insert into DOM
+
 function escapeHtml(str){
+  //
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // return str
+  
 }
 
 function resetStats(){
-  // stop timer if running
   if (timerInterval) {
     clearInterval(timerInterval);
     timerInterval = null;
@@ -69,12 +69,10 @@ function startTimerOnce(){
       timerInterval = null;
       typingArea.disabled = true;
     }
-    // keep updating wpm while timing
     computeStats();
   }, 1000);
 }
 
-// compute mistakes, correctChars, WPM, CPM
 function computeStats(){
   const typed = typingArea.value;
   const lenTyped = typed.length;
@@ -83,7 +81,6 @@ function computeStats(){
   let correctChars = 0;
   for (let i = 0; i < lenTyped; i++){
     if (i >= lenRef) {
-      // typed extra beyond reference -> count as mistake
       mistakes++;
     } else if (typed[i] !== currentText[i]) {
       mistakes++;
@@ -92,12 +89,11 @@ function computeStats(){
     }
   }
 
-  const elapsedSeconds = Math.max(1, (TOTAL_TIME - timeLeft)); // avoid zero
+  const elapsedSeconds = Math.max(1, (TOTAL_TIME - timeLeft));
   const elapsedMinutes = elapsedSeconds / 60;
   const wpm = Math.round((correctChars / 5) / elapsedMinutes) || 0;
   const cpm = correctChars || 0;
 
-  // update UI
   mistakesEl.textContent = mistakes;
   wpmEl.textContent = wpm;
   cpmEl.textContent = cpm;
@@ -109,12 +105,14 @@ function computeStats(){
     // We want to highlight correct characters by position, not by counting mistakes.
     // Another approach: highlight all indices where typed char equals ref char.
     let html = "";
+    //
     for (let i = 0; i < currentText.length; i++){
       const ch = escapeHtml(currentText[i]);
       if (i < typed.length && typed[i] === currentText[i]) {
-        html += `<span style="color:var(--neon)">${ch}</span>`;
+        html += `<pre style="color:var(--neon)">${ch}</pre>`;
       } else {
-        html += `<span>${ch}</span>`;
+        html += `<pre>${ch}</pre>`;
+      
       }
     }
     testTextEl.innerHTML = html;
@@ -141,3 +139,8 @@ typingArea.addEventListener("keydown", (e) => {
   }
 });
 
+const toggle = document.getElementById("toggleBtn");
+
+    toggle.addEventListener("change", () => {
+      document.body.classList.toggle("dark", toggle.checked);
+    });
