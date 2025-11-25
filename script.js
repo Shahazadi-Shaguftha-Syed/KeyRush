@@ -20,7 +20,7 @@ const popupWPM = document.getElementById("popupWPM");
 const popupMistakes = document.getElementById("popupMistakes");
 const popupCPM = document.getElementById("popupCPM");
 const closePopup = document.getElementById("closePopup");
-
+const TryAgainPopUp = document.getElementById("TryAgainPopUp");
 
 
 const TOTAL_TIME = 60; 
@@ -59,6 +59,7 @@ function resetStats(){
     cpmEl.textContent = 0;
     displayWPM.textContent = "0 WPM";
 }
+
 
 function startTimerOnce(){
   if (isTiming) return;
@@ -141,10 +142,11 @@ tryAgainBtn.addEventListener("click", () => {
 loadRandomText();
 
 const toggle = document.getElementById("toggleBtn");
+toggle.addEventListener("change", () => {
+  document.body.classList.toggle("light", toggle.checked);
+});
 
-    toggle.addEventListener("change", () => {
-      document.body.classList.toggle("light", toggle.checked);
-    });
+
 // popup card
 function showResults() {
   popupWPM.textContent = "WPM: " + wpmEl.textContent;
@@ -154,19 +156,21 @@ function showResults() {
   resultPopup.classList.remove("hidden");
 }
 
-closePopup.addEventListener("click", () => {
+//try again button 
+TryAgainPopUp.addEventListener("click", () => {
   resultPopup.classList.add("hidden");
   location.reload();
 });
 
-
+//to be worked on
+function closeTab() {
+  window.open('', '_self'); 
+  window.close();
+}
 
 // Start Popup
 const startPopup = document.getElementById("startPopup");
 const startBtn = document.getElementById("startBtn");
-
-// Disable typing before start
-typingArea.disabled = true;
 
 startBtn.addEventListener("click", () => {
   startPopup.style.display = "none";
@@ -177,3 +181,5 @@ startBtn.addEventListener("click", () => {
 window.addEventListener("load", () => {
   document.getElementById("pageContainer").classList.add("show");
 });
+
+
