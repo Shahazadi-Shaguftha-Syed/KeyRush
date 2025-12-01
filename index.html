@@ -8,29 +8,39 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Italiana&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 <body>
   <div id="pageContainer" class="page-drop">
 
     <header class="main-header">
-
-      <h1>KeyRush</h1>
-      <div class="sub-head">
-        <label class="switch">
-          <input type="checkbox" id="toggleBtn">
-          <span class="slider"></span>
-        </label>
-        <button class="header-btn">Login</button>
-      </div> 
+      <div class="header-content">
+        <h1>KeyRush</h1>
+        <div class="sub-head">
+          <label class="switch">
+            <input type="checkbox" id="toggleBtn">
+            <span class="slider"></span>
+          </label>
+        </div>
+        </div>
 
     </header>
   
 
     <main class="main">
+      <!-- TIMER SELECTOR -->
+      <div class="timer-select">
+      <p>Pick how long you want to type:</p>
+        <button class="time-btn" data-time="10">10s</button>
+        <button class="time-btn" data-time="30">30s</button>
+        <button class="time-btn active" data-time="60">60s</button>
+        <button class="time-btn" data-time="120">120s</button>
+      </div>
+
+      <!--text area -->
       <div class="center-box">
-        <!-- Random test text (centered above textarea) -->
         <div class="test-text" id="testText">Loading text...</div>
-        <!-- Typing area: user types here -->
         <textarea class="center-input" id="typingArea" placeholder="Start typing the text shown above..."></textarea>
       </div>
 
@@ -38,27 +48,31 @@
         <div class="content">
           <ul class="result-details" aria-live="polite">
             <li class="time">
-              <div>Time Left</div>
+              <div class="stat-label">Time Left</div>
               <span id="timeLeft">60</span>
             </li>
             <li class="mistake">
-              <div>Mistakes</div>
+              <div class="stat-label">Mistakes</div>
               <span id="mistakes">0</span>
             </li>
             <li class="wpm">
-              <div>WPM</div>
+              <div class="stat-label">WPM</div>
               <span id="wpm">0</span>
             </li>
             <li class="cpm">
-              <div>CPM</div>
+              <div class="stat-label">CPM</div>
               <span id="cpm">0</span>
             </li>
           </ul>
           <div class="box">
             <p id="displayWPM">0 WPM</p>
             <div style="height:6px"></div>
-            <button id="tryAgain">Try Again</button>
+            <button id="tryAgain"><span class="btn-icon">↻</span>Try Again</button>
           </div>
+        </div>
+        <div class="chart-container">
+          <h3 style="margin-top:20px;">Your Performance</h3>
+          <canvas id="resultChart" height="120"></canvas>
         </div>
       </div>
     </main>
@@ -68,21 +82,24 @@
   <div id="startPopup" class="start-popup">
     <div class="start-popup-content">
       <h2>Welcome to KeyRush!</h2>
-      <p style="margin-top:10px;">
+      <p class="popup-subtitle">
         Improve your typing speed and accuracy with this quick test.
       </p>
 
-      <h3 style="margin-top:15px;">Instructions:</h3>
-      <ul style="text-align:left; margin:10px auto; width:100%;">
-        <li>The timer starts as soon as you begin typing.</li>
-        <li>Type the paragraph exactly as shown above.</li>
-        <li>Correct letters are highlighted.</li>
-        <li>Mistakes turn red as you type.</li>
-        <li>A results popup appears when time is up.</li>
-        <li>You can try again anytime to get a new paragraph.</li>
-      </ul>
+      <div class="instructions-section">
+        <h3 style="margin-top:15px;">Instructions:</h3>
+        <ul style="text-align:left; margin:10px auto; width:100%;">
+          <li>The timer starts as soon as you begin typing.</li>
+          <li>Type the paragraph exactly as shown above.</li>
+          <li>Correct letters are highlighted.</li>
+          <li>Mistakes turn red as you type.</li>
+          <li>Results popup appears when time is up.</li>
+          <li>Try again anytime to get a new paragraph.</li>
+          <li>Cmd+K / Ctrl+K - generate new paragraph.</li>
+        </ul>
+      </div>
 
-      <button id="startBtn">Start</button>
+      <button id="startBtn"><span class="btn-glow"></span>Start</button>
     </div>
   </div>
 
@@ -90,13 +107,13 @@
   <div id="resultPopup" class="popup hidden">
     <div class="popup-content">
       <h2>Results!</h2>
-      <p id="popupWPM"></p>
-      <p id="popupMistakes"></p>
-      <p id="popupCPM"></p>
+      <div class="result-stats">
+        <p id="popupWPM"></p>
+        <p id="popupMistakes"></p>
+        <p id="popupCPM"></p>
+      </div>
       <!-- <button >Close</button> -->
-      <button id="TryAgainPopUp">Try Again</button>
-      <button onclick="closeTab()" id="closePopup">Close</button><!--//to be work on -->
-
+      <button id="TryAgainPopUp"><span class="btn-icon">↻</span>Try Again</button>
     </div>
   </div>
 

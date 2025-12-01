@@ -1,10 +1,10 @@
 // ====== Data ======
 const paragraphs = [
-  "Learning to code becomes much easier when you build small projects consistently. Each project teaches you something new and strengthens your problem-solving skills.",
-  "Good communication is just as important as technical knowledge in the tech world. Clear explanations help teams collaborate better and avoid misunderstandings.",
-  "Small habits, repeated daily, become powerful over time. Even ten minutes of focused practice can make a noticeable difference in your skills.",
-  "Exploring different programming languages opens your mind to new ways of thinking. Every language has its own style and strengths that shape how you build solutions.",
-  "Staying curious is one of the best traits a developer can have. When you experiment and ask questions, you naturally discover things others overlook."
+  "The morning breeze drifted through the open window, carrying the scent of fresh rain. Birds began their soft songs, filling the quiet air with gentle melodies. As the sun slowly rose, golden light spread across the sleepy town. People stepped outside, ready to begin their day with renewed energy. Everything felt calm and full of promise, as though the world had been refreshed overnight.",
+  "The old train station buzzed with life as travelers hurried along the platform. Luggage wheels clattered against the floor, mingling with the distant rumble of arriving trains. A young boy watched in awe, imagining adventures waiting beyond the tracks. Vendors called out cheerfully, offering warm pastries and hot tea. As the whistle sounded, excitement filled the air, marking the beginning of another journey.",
+  "The forest path was lined with tall, ancient trees swaying gently in the wind. Sunlight filtered through the leaves, creating shifting patterns on the ground. A small stream bubbled nearby, adding a calming rhythm to the peaceful scene. Hikers moved quietly, careful not to disturb the natural harmony around them. Every step forward revealed something new and beautiful hidden in the wilderness.",
+  "In the bustling café, the aroma of freshly brewed coffee filled the air. Friends gathered around small tables, chatting and laughing between sips. A barista worked skillfully behind the counter, crafting drinks with practiced ease. Soft music played in the background, adding to the warm atmosphere. It was the kind of place where time seemed to slow down, inviting people to stay just a little longer.",
+  "The city lights sparkled like stars as evening settled in. Cars rushed by, their headlights weaving through the busy streets. A street musician played a soulful tune, drawing the attention of passersby. Couples strolled along the sidewalks, enjoying the cool night air. Despite the noise and movement, there was something comforting about the energy of the city at dusk."
 ];
 // ====== Elements ======
 const testTextEl = document.getElementById("testText");
@@ -23,9 +23,9 @@ const closePopup = document.getElementById("closePopup");
 const TryAgainPopUp = document.getElementById("TryAgainPopUp");
 
 
-const TOTAL_TIME = 60; 
-let timerInterval = null;
+let TOTAL_TIME = 60;  // default selected
 let timeLeft = TOTAL_TIME;
+let timerInterval = null;
 let isTiming = false;
 let currentText = "";
 let startTime = null;
@@ -113,18 +113,20 @@ function computeStats(){
     for (let i = 0; i < currentText.length; i++) {
       const refCh = currentText[i];
       const typedCh = typed[i];
+    
+      // replace normal space with HTML-safe space
+      const safeChar = refCh === " " ? "&nbsp;" : escapeHtml(refCh);
+    
       if (typedCh === refCh) {
-        // correct
-        html += `<span style="color:#5bb450; white-space:pre-wrap">${escapeHtml(refCh)}</span>`;
+        html += `<span style="color:#5bb450; white-space:pre-wrap">${safeChar}</span>`;
       } else if (typedCh !== undefined) {
-        // wrong
-        html += `<span style="color:#f55; white-space:pre-wrap">${escapeHtml(refCh)}</span>`;
+        html += `<span style="color:#f55; white-space:pre-wrap">${safeChar}</span>`;
       } else {
-        // not typed yet
-        html += `<span style="white-space:pre-wrap">${escapeHtml(refCh)}</span>`;
+        html += `<span style="white-space:pre-wrap">${safeChar}</span>`;
       }
     }
     testTextEl.innerHTML = html;
+
 }
 
 // ====== Events ======
@@ -155,18 +157,53 @@ function showResults() {
 
   resultPopup.classList.remove("hidden");
 }
+function saveResult(wpm) {
+  let history = JSON.parse(localStorage.getItem("typingHistory")) || [];
+  history.push(wpm);
+  localStorage.setItem("typingHistory", JSON.stringify(history));
+}
+let resultChartInstance;
+
+function drawResultChart() {
+  const history = JSON.parse(localStorage.getItem("typingHistory")) || [];
+  const labels = history.map((_, i) => "Attempt " + (i + 1));
+
+  const ctx = document.getElementById("resultChart").getContext("2d");
+
+  if (resultChartInstance) resultChartInstance.destroy();
+
+  resultChartInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: labels,
+      datasets: [{
+        label: "WPM",
+        data: history,
+        borderWidth: 2,
+        tension: 0.3
+      }]
+    }
+  });
+}
+function showResults(finalWPM) {
+
+  // update UI numbers
+  document.getElementById("displayWPM").innerText = finalWPM + " WPM";
+  document.getElementById("wpm").innerText = finalWPM;
+
+  saveResult(finalWPM);
+
+  drawResultChart();
+}
+
+
 
 //try again button 
 TryAgainPopUp.addEventListener("click", () => {
   resultPopup.classList.add("hidden");
-  location.reload();
+  loadRandomText();
 });
 
-//to be worked on
-function closeTab() {
-  window.open('', '_self'); 
-  window.close();
-}
 
 // Start Popup
 const startPopup = document.getElementById("startPopup");
@@ -183,3 +220,27 @@ window.addEventListener("load", () => {
 });
 
 
+// TIMER BUTTONS
+const timeButtons = document.querySelectorAll(".time-btn");
+timeButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    // remove active from all buttons
+    timeButtons.forEach(b => b.classList.remove("active"));
+    // make clicked one active
+    btn.classList.add("active");
+    // update time
+    TOTAL_TIME = Number(btn.dataset.time);
+    timeLeft = TOTAL_TIME;
+    timeLeftEl.textContent = timeLeft;
+
+    resetStats();
+  });
+});
+
+
+window.addEventListener("keydown", function (e) {
+  if ((e.ctrlKey && e.key === "k") || (e.metaKey && e.key === "k")) {
+    e.preventDefault();
+    loadRandomText();
+  }
+});
