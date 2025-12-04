@@ -69,6 +69,3 @@ At the end of each test, KeyRush displays:
    - Final statistics are displayed  
 
 ---
-
-## 📂 Project Structure
-
