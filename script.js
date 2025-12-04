@@ -321,6 +321,11 @@ function drawTypingChart() {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   const labels = wpmHistory.map((_, i) => i + 1);
+  const errorPoints = errorHistory.map((val, i ) => {
+    if(i === 0) return null;
+    return val > errorHistory[i - 1] ? wpmHistory[i] : null;
+  });
+  
   if (typingChartInstance) {
     typingChartInstance.destroy();
   }
@@ -338,6 +343,16 @@ function drawTypingChart() {
           tension: 0.35,
           pointRadius: 0
         },
+        {
+          label: "Errors",
+          data: errorPoints, 
+          type: "scatter",
+          pointRadius: 9,
+          borderWidth: 2,
+          pointStyle: "crossRot",
+          backgroundColor: "red",
+          borderColor: "red"
+        }
         
       ]
       
