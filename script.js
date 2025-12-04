@@ -92,87 +92,65 @@ function startTimerOnce(){
   }, 1000);
 }
 
-function computeStats(finalRun = false){
+function computeStats(finalRun = false) {
   const typed = typingArea.value || "";
-  const lenTyped = typed.length;
-  const lenRef = currentText.length;
   let mistakes = 0;
   let correctChars = 0;
-  for (let i = 0; i < lenTyped; i++){
-    if (i >= lenRef) {
-      mistakes++;
-    } else if (typed[i] !== currentText[i]) {
-      mistakes++;
-    } else {
-      correctChars++;
-    }
+
+  for (let i = 0; i < typed.length; i++) {
+    if (typed[i] !== currentText[i]) mistakes++;
+    else correctChars++;
   }
 
-    const elapsedSeconds = Math.max(1, (TOTAL_TIME - timeLeft));
-    const totalTyped = lenTyped;
-    const elapsedMinutes = elapsedSeconds / 60;
-    const accuracy = totalTyped === 0
-    const wpm = Math.round((correctChars / 5) / elapsedMinutes) || 0;
-      ? 0
-    const cpm = correctChars || 0;
-      : ((correctChars / totalTyped) * 100).toFixed(2);
-    let elapsedSeconds = 0;
-    if (startTime) {
-      elapsedSeconds = (Date.now() - startTime) / 1000;
-    } else {
-      elapsedSeconds = 0;
-    }
-    const safeElapsedSeconds = Math.max(elapsedSeconds, 1 / 60);
-    const elapsedMinutes = safeElapsedSeconds / 60;
-    const wpm = Math.round((correctChars / 5) / elapsedMinutes);
-    const cpm = Math.round(correctChars / elapsedMinutes);
+  const elapsedSeconds = startTime
+    ? Math.max(1, (Date.now() - startTime) / 1000)
+    : 1;
 
-  
-    mistakesEl.textContent = mistakes;
-    wpmEl.textContent = isFinite(wpm) ? wpm : 0;
-    cpmEl.textContent = isFinite(cpm) ? cpm : 0;
-    displayWPM.textContent = (isFinite(wpm) ? wpm : 0) + " WPM";
+  const elapsedMinutes = elapsedSeconds / 60;
 
-    // update highlighted test text: correct part colored neon
-    let html = "";
-    for (let i = 0; i < currentText.length; i++) {
-      const refCh = currentText[i];
-      const typedCh = typed[i];
-    
-      // replace normal space with HTML-safe space
-      const safeChar = refCh === " " ? "&nbsp;" : escapeHtml(refCh);
-    
-      if (typedCh === refCh) {
-        html += `<span style="color:#5bb450;>${safeChar}</span>`;
-      } else if (typedCh !== undefined) {
-        if (!playedErrorForIndex[i]) {
-      } else {
-        errorSound.currentTime = 0;
-        html += `<span style="white-space:pre-wrap">${safeChar}</span>`;
-        errorSound.play();
-      }
-        playedErrorForIndex[i] = true;
-    }
-    }
-    html += `<span style="color:#f55;">${safeChar}</span>`;
-    }
-     else {
-      html += `<span style="white-space:pre-wrap">${safeChar}</span>`;
-    }
-  }
-    testTextEl.innerHTML = html;
-  if (finalRun) {
-    return {
-      wpm: isFinite(wpm) ? wpm : 0,
-      cpm: isFinite(cpm) ? cpm : 0,
-      mistakes,
-      accuracy
-    };
-  }
+  const wpm = Math.round((correctChars / 5) / elapsedMinutes) || 0;
+  const cpm = Math.round(correctChars / elapsedMinutes) || 0;
+  const accuracy = typed.length === 0
+    ? 0
+    : ((correctChars / typed.length) * 100).toFixed(2);
+
+  mistakesEl.textContent = mistakes;
+  wpmEl.textContent = wpm;
+  cpmEl.textContent = cpm;
+  displayWPM.textContent = wpm + " WPM";
   if (accuracyEl) accuracyEl.textContent = accuracy + "%";
 
+  // ===== Highlight Text =====
+  let html = "";
+  for (let i = 0; i < currentText.length; i++) {
+    const ref = currentText[i];
+    const typedCh = typed[i];
+    const safeChar = ref === " " ? "&nbsp;" : escapeHtml(ref);
 
+    if (typedCh === ref) {
+      html += `<span style="color:#5bb450">${safeChar}</span>`;
+    } 
+    else if (typedCh !== undefined) {
+      html += `<span style="color:#f55">${safeChar}</span>`;
+
+      if (!playedErrorForIndex[i]) {
+        errorSound.currentTime = 0;
+        errorSound.play();
+        playedErrorForIndex[i] = true;
+      }
+    } 
+    else {
+      html += `<span style="color:#888">${safeChar}</span>`;
+    }
+  }
+
+  testTextEl.innerHTML = html;
+
+  if (finalRun) {
+    return { wpm, cpm, mistakes, accuracy };
+  }
 }
+
 
 
 // ====== Events ======
@@ -260,17 +238,6 @@ function saveResult(wpm) {
   let history = JSON.parse(localStorage.getItem("typingHistory")) || [];
   history.push(wpm);
   localStorage.setItem("typingHistory", JSON.stringify(history));
-}
-
-function showResults(finalWPM) {
-
-  // update UI numbers
-  document.getElementById("displayWPM").innerText = finalWPM + " WPM";
-  document.getElementById("wpm").innerText = finalWPM;
-
-  saveResult(finalWPM);
-
-  drawResultChart();
 }
 
 
