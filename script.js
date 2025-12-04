@@ -21,6 +21,9 @@ const popupMistakes = document.getElementById("popupMistakes");
 const popupCPM = document.getElementById("popupCPM");
 const closePopup = document.getElementById("closePopup");
 const TryAgainPopUp = document.getElementById("TryAgainPopUp");
+const errorSound = new Audio("./audio/error.wav");
+const popupAccuracy = document.getElementById("popupAccuracy");
+const accuracyEl = document.getElementById("accuracy");
 
 
 let TOTAL_TIME = 60;  // default selected
@@ -29,7 +32,9 @@ let timerInterval = null;
 let isTiming = false;
 let currentText = "";
 let startTime = null;
-
+let wpmHistory = [];
+let errorHistory = [];
+let playedErrorForIndex = [];
 
 function loadRandomText() {
   const idx = Math.floor(Math.random() * paragraphs.length);
@@ -49,15 +54,18 @@ function resetStats(){
   if (timerInterval) {
     clearInterval(timerInterval);
     timerInterval = null;
-    }
-    timeLeft = TOTAL_TIME;
-    isTiming = false;
-    startTime = null;
-    timeLeftEl.textContent = timeLeft;
-    mistakesEl.textContent = 0;
-    wpmEl.textContent = 0;
-    cpmEl.textContent = 0;
-    displayWPM.textContent = "0 WPM";
+  }
+  timeLeft = TOTAL_TIME;
+  isTiming = false;
+  startTime = null;
+  timeLeftEl.textContent = timeLeft;
+  mistakesEl.textContent = 0;
+  wpmEl.textContent = 0;
+  cpmEl.textContent = 0;
+  displayWPM.textContent = "0 WPM";
+  wpmHistory = [];
+  errorHistory = [];
+  playedErrorForIndex = [];
 }
 
 
@@ -77,11 +85,14 @@ function startTimerOnce(){
     }    
 
     computeStats();
+    // save history every second
+    wpmHistory.push(parseInt(wpmEl.textContent) || 0);
+    errorHistory.push(parseInt(mistakesEl.textContent) || 0);
   }, 1000);
 }
 
-function computeStats(){
-  const typed = typingArea.value;
+function computeStats(finalRun = false){
+  const typed = typingArea.value || "";
   const lenTyped = typed.length;
   const lenRef = currentText.length;
   let mistakes = 0;
@@ -96,19 +107,32 @@ function computeStats(){
     }
   }
 
-  const elapsedSeconds = Math.max(1, (TOTAL_TIME - timeLeft));
-  const elapsedMinutes = elapsedSeconds / 60;
-  const wpm = Math.round((correctChars / 5) / elapsedMinutes) || 0;
-  const cpm = correctChars || 0;
+    const elapsedSeconds = Math.max(1, (TOTAL_TIME - timeLeft));
+    const totalTyped = lenTyped;
+    const elapsedMinutes = elapsedSeconds / 60;
+    const accuracy = totalTyped === 0
+    const wpm = Math.round((correctChars / 5) / elapsedMinutes) || 0;
+      ? 0
+    const cpm = correctChars || 0;
+      : ((correctChars / totalTyped) * 100).toFixed(2);
+    let elapsedSeconds = 0;
+    if (startTime) {
+      elapsedSeconds = (Date.now() - startTime) / 1000;
+    } else {
+      elapsedSeconds = 0;
+    }
+    const safeElapsedSeconds = Math.max(elapsedSeconds, 1 / 60);
+    const elapsedMinutes = safeElapsedSeconds / 60;
+    const wpm = Math.round((correctChars / 5) / elapsedMinutes);
+    const cpm = Math.round(correctChars / elapsedMinutes);
 
-  mistakesEl.textContent = mistakes;
-  wpmEl.textContent = wpm;
-  cpmEl.textContent = cpm;
-  displayWPM.textContent = wpm + " WPM";
+  
+    mistakesEl.textContent = mistakes;
+    wpmEl.textContent = isFinite(wpm) ? wpm : 0;
+    cpmEl.textContent = isFinite(cpm) ? cpm : 0;
+    displayWPM.textContent = (isFinite(wpm) ? wpm : 0) + " WPM";
 
     // update highlighted test text: correct part colored neon
-    const correctPart = escapeHtml(currentText.slice(0, correctChars + (lenTyped > lenRef ? 0 : 0)));
-    const nextPart = escapeHtml(currentText.slice(correctChars));
     let html = "";
     for (let i = 0; i < currentText.length; i++) {
       const refCh = currentText[i];
@@ -118,16 +142,37 @@ function computeStats(){
       const safeChar = refCh === " " ? "&nbsp;" : escapeHtml(refCh);
     
       if (typedCh === refCh) {
-        html += `<span style="color:#5bb450; white-space:pre-wrap">${safeChar}</span>`;
+        html += `<span style="color:#5bb450;>${safeChar}</span>`;
       } else if (typedCh !== undefined) {
-        html += `<span style="color:#f55; white-space:pre-wrap">${safeChar}</span>`;
+        if (!playedErrorForIndex[i]) {
       } else {
+        errorSound.currentTime = 0;
         html += `<span style="white-space:pre-wrap">${safeChar}</span>`;
+        errorSound.play();
       }
+        playedErrorForIndex[i] = true;
     }
+    }
+    html += `<span style="color:#f55;">${safeChar}</span>`;
+    }
+     else {
+      html += `<span style="white-space:pre-wrap">${safeChar}</span>`;
+    }
+  }
     testTextEl.innerHTML = html;
+  if (finalRun) {
+    return {
+      wpm: isFinite(wpm) ? wpm : 0,
+      cpm: isFinite(cpm) ? cpm : 0,
+      mistakes,
+      accuracy
+    };
+  }
+  if (accuracyEl) accuracyEl.textContent = accuracy + "%";
+
 
 }
+
 
 // ====== Events ======
 typingArea.addEventListener("input", (e) => {
@@ -148,43 +193,69 @@ toggle.addEventListener("change", () => {
   document.body.classList.toggle("light", toggle.checked);
 });
 
+function flashBlockedBackspace() {
+  const orig = typingArea.style.boxShadow;
+  typingArea.style.boxShadow = "0 0 0 4px rgba(255,80,80,0.12)";
+  setTimeout(() => typingArea.style.boxShadow = orig, 160);
+}
+typingArea.addEventListener('keydown', function (e) {
+  if (e.key !== 'Backspace') return;
+  const selStart = typingArea.selectionStart;
+  const selEnd = typingArea.selectionEnd;
+  if (selStart !== selEnd) {
+    return;
+  }
+  const caretPos = selStart;
+  if (caretPos === 0) {
+    e.preventDefault();
+    flashBlockedBackspace();
+    return;
+  }
+  const typed = typingArea.value;
+  const deleteIndex = caretPos - 1;
+  if (deleteIndex >= currentText.length) {
+    e.preventDefault();
+    typingArea.value = typed.slice(0, deleteIndex) + typed.slice(deleteIndex + 1);
+    typingArea.setSelectionRange(deleteIndex, deleteIndex);
+    computeStats();
+    return;
+  }
+  const typedChar = typed[deleteIndex];
+  const refChar = currentText[deleteIndex];
+  if (typedChar !== refChar) {
+    e.preventDefault();
+    typingArea.value = typed.slice(0, deleteIndex) + typed.slice(deleteIndex + 1);
+    typingArea.setSelectionRange(deleteIndex, deleteIndex);
+    computeStats();
+    return;
+  } else {
+    e.preventDefault();
+    flashBlockedBackspace();
+    
+    return;
+  }
+});
+
 
 // popup card
 function showResults() {
+  const finalStats = computeStats(true);
   popupWPM.textContent = "WPM: " + wpmEl.textContent;
   popupMistakes.textContent = "Mistakes: " + mistakesEl.textContent;
-  popupCPM.textContent = "CPM: " + cpmEl.textContent;
+  popupCPM.textContent = "CPM: " + cpmEl.textContent;  
+  popupAccuracy.textContent = "Accuracy: " + finalStats.accuracy + "%";
 
   resultPopup.classList.remove("hidden");
+  setTimeout(() => {
+    drawTypingChart();
+  }, 150);
 }
 function saveResult(wpm) {
   let history = JSON.parse(localStorage.getItem("typingHistory")) || [];
   history.push(wpm);
   localStorage.setItem("typingHistory", JSON.stringify(history));
 }
-let resultChartInstance;
 
-function drawResultChart() {
-  const history = JSON.parse(localStorage.getItem("typingHistory")) || [];
-  const labels = history.map((_, i) => "Attempt " + (i + 1));
-
-  const ctx = document.getElementById("resultChart").getContext("2d");
-
-  if (resultChartInstance) resultChartInstance.destroy();
-
-  resultChartInstance = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: labels,
-      datasets: [{
-        label: "WPM",
-        data: history,
-        borderWidth: 2,
-        tension: 0.3
-      }]
-    }
-  });
-}
 function showResults(finalWPM) {
 
   // update UI numbers
@@ -224,11 +295,8 @@ window.addEventListener("load", () => {
 const timeButtons = document.querySelectorAll(".time-btn");
 timeButtons.forEach(btn => {
   btn.addEventListener("click", () => {
-    // remove active from all buttons
     timeButtons.forEach(b => b.classList.remove("active"));
-    // make clicked one active
     btn.classList.add("active");
-    // update time
     TOTAL_TIME = Number(btn.dataset.time);
     timeLeft = TOTAL_TIME;
     timeLeftEl.textContent = timeLeft;
@@ -244,3 +312,52 @@ window.addEventListener("keydown", function (e) {
     loadRandomText();
   }
 });
+
+
+//performance chart
+let typingChartInstance = null;
+function drawTypingChart() {
+  const canvas = document.getElementById("typingChart");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const labels = wpmHistory.map((_, i) => i + 1);
+  if (typingChartInstance) {
+    typingChartInstance.destroy();
+  }
+  typingChartInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "WPM",
+          data: wpmHistory,
+          borderColor: "#8b5cf6",
+          backgroundColor: "rgba(139,92,246,0.15)",
+          borderWidth: 3,
+          tension: 0.35,
+          pointRadius: 0
+        },
+        
+      ]
+      
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: "#aaa" } },
+        y: {
+          beginAtZero: true,
+          ticks: { color: "#aaa" },
+          grid: { color: "#333" }
+        }
+      },
+      plugins: {
+        legend: {
+          labels: { color: "#ddd" }
+        }
+      }
+    }
+  });
+}
