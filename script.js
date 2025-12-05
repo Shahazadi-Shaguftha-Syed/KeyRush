@@ -25,9 +25,10 @@ const TryAgainPopUp = document.getElementById("TryAgainPopUp");
 const errorSound = new Audio("./audio/error.wav");
 const popupAccuracy = document.getElementById("popupAccuracy");
 const accuracyEl = document.getElementById("accuracy");
+const popupTyped = document.getElementById("popupTyped");
 
 
-let TOTAL_TIME = 60;  // default selected
+let TOTAL_TIME = 60; 
 let timeLeft = TOTAL_TIME;
 let timerInterval = null;
 let isTiming = false;
@@ -55,7 +56,7 @@ function resetStats(){
   if (timerInterval) {
     clearInterval(timerInterval);
     timerInterval = null;
-  }
+    }
   timeLeft = TOTAL_TIME;
   isTiming = false;
   startTime = null;
@@ -94,63 +95,93 @@ function startTimerOnce(){
 
 function computeStats(finalRun = false) {
   const typed = typingArea.value || "";
+  const lenTyped = typed.length;
+  const lenRef = currentText.length;
   let mistakes = 0;
   let correctChars = 0;
 
-  for (let i = 0; i < typed.length; i++) {
-    if (typed[i] !== currentText[i]) mistakes++;
-    else correctChars++;
-  }
-
-  const elapsedSeconds = startTime
-    ? Math.max(1, (Date.now() - startTime) / 1000)
-    : 1;
-
-  const elapsedMinutes = elapsedSeconds / 60;
-
-  const wpm = Math.round((correctChars / 5) / elapsedMinutes) || 0;
-  const cpm = Math.round(correctChars / elapsedMinutes) || 0;
-  const accuracy = typed.length === 0
-    ? 0
-    : ((correctChars / typed.length) * 100).toFixed(2);
-
-  mistakesEl.textContent = mistakes;
-  wpmEl.textContent = wpm;
-  cpmEl.textContent = cpm;
-  displayWPM.textContent = wpm + " WPM";
-  if (accuracyEl) accuracyEl.textContent = accuracy + "%";
-
-  // ===== Highlight Text =====
-  let html = "";
-  for (let i = 0; i < currentText.length; i++) {
-    const ref = currentText[i];
-    const typedCh = typed[i];
-    const safeChar = ref === " " ? "&nbsp;" : escapeHtml(ref);
-
-    if (typedCh === ref) {
-      html += `<span style="color:#5bb450">${safeChar}</span>`;
-    } 
-    else if (typedCh !== undefined) {
-      html += `<span style="color:#f55">${safeChar}</span>`;
-
-      if (!playedErrorForIndex[i]) {
-        errorSound.currentTime = 0;
-        errorSound.play();
-        playedErrorForIndex[i] = true;
-      }
-    } 
-    else {
-      html += `<span style="color:#888">${safeChar}</span>`;
+  for (let i = 0; i < lenTyped; i++) {
+    if (i >= lenRef) {
+      mistakes++;
+    } else if (typed[i] !== currentText[i]) {
+      mistakes++;
+    } else {
+      correctChars++;
     }
   }
 
-  testTextEl.innerHTML = html;
+  const totalTyped = lenTyped;
+  const accuracy = totalTyped === 0 
+    ? 0 
+    : ((correctChars / totalTyped) * 100).toFixed(2);
 
-  if (finalRun) {
-    return { wpm, cpm, mistakes, accuracy };
+
+  let elapsedSeconds = 0;
+  if (startTime) {
+    elapsedSeconds = (Date.now() - startTime) / 1000;
+  } else {
+    elapsedSeconds = 0;
   }
+
+
+  const safeElapsedSeconds = Math.max(elapsedSeconds, 1 / 60); 
+  const elapsedMinutes = safeElapsedSeconds / 60;
+
+
+  const wpm = Math.round((correctChars / 5) / elapsedMinutes);
+  const cpm = Math.round(correctChars / elapsedMinutes);
+
+  // update DOM
+  mistakesEl.textContent = mistakes;
+  wpmEl.textContent = isFinite(wpm) ? wpm : 0;
+  cpmEl.textContent = isFinite(cpm) ? cpm : 0;
+  displayWPM.textContent = (isFinite(wpm) ? wpm : 0) + " WPM";
+
+  // update highlighted test text
+  let html = "";
+  for (let i = 0; i < currentText.length; i++) {
+    const refCh = currentText[i];
+    const typedCh = typed[i];
+    const safeChar = refCh === " " ? "&nbsp;" : escapeHtml(refCh);
+
+    if (typedCh === refCh) {
+    html += `<span style="color:#5bb450;">${safeChar}</span>`;
+    } else if (typedCh !== undefined) {
+    if (!playedErrorForIndex[i]) {
+        errorSound.currentTime = 0;
+        errorSound.play();
+        playedErrorForIndex[i] = true;
+    }
+
+    html += `<span style="color:#f55;">${safeChar}</span>`;
 }
 
+     else {
+      html += `<span style="white-space:pre-wrap">${safeChar}</span>`;
+    }
+  }
+  testTextEl.innerHTML = html;
+  // testTextEl.classList.add("special-elite-regular")
+
+  if (finalRun) {
+    return { 
+      wpm: isFinite(wpm) ? wpm : 0, 
+      cpm: isFinite(cpm) ? cpm : 0, 
+      mistakes,
+      accuracy,
+      typed: totalTyped,
+      total: currentText.length
+    };
+  }
+
+  if (accuracyEl) accuracyEl.textContent = accuracy + "%";
+
+  
+
+
+ 
+
+}
 
 
 // ====== Events ======
@@ -158,18 +189,17 @@ typingArea.addEventListener("input", (e) => {
   if (!isTiming) startTimerOnce();
   computeStats();
 });
-
 typingArea.addEventListener("paste", function (e) {
   e.preventDefault();
   alert("To ensure fair typing performance, paste actions are disabled in the input area.");
 });
 
 
+
 tryAgainBtn.addEventListener("click", () => {
-  loadRandomText(); // includes resetting stats
+  loadRandomText(); 
 });
 
-// load initial text
 loadRandomText();
 
 const toggle = document.getElementById("toggleBtn");
@@ -177,26 +207,34 @@ toggle.addEventListener("change", () => {
   document.body.classList.toggle("light", toggle.checked);
 });
 
+
 function flashBlockedBackspace() {
   const orig = typingArea.style.boxShadow;
   typingArea.style.boxShadow = "0 0 0 4px rgba(255,80,80,0.12)";
   setTimeout(() => typingArea.style.boxShadow = orig, 160);
 }
+
 typingArea.addEventListener('keydown', function (e) {
   if (e.key !== 'Backspace') return;
   const selStart = typingArea.selectionStart;
   const selEnd = typingArea.selectionEnd;
   if (selStart !== selEnd) {
+
     return;
   }
-  const caretPos = selStart;
+
+  const caretPos = selStart; 
+
   if (caretPos === 0) {
     e.preventDefault();
     flashBlockedBackspace();
     return;
   }
+
   const typed = typingArea.value;
-  const deleteIndex = caretPos - 1;
+  const deleteIndex = caretPos - 1; 
+
+
   if (deleteIndex >= currentText.length) {
     e.preventDefault();
     typingArea.value = typed.slice(0, deleteIndex) + typed.slice(deleteIndex + 1);
@@ -204,15 +242,20 @@ typingArea.addEventListener('keydown', function (e) {
     computeStats();
     return;
   }
+
+
   const typedChar = typed[deleteIndex];
   const refChar = currentText[deleteIndex];
+
   if (typedChar !== refChar) {
+
     e.preventDefault();
     typingArea.value = typed.slice(0, deleteIndex) + typed.slice(deleteIndex + 1);
     typingArea.setSelectionRange(deleteIndex, deleteIndex);
     computeStats();
     return;
   } else {
+
     e.preventDefault();
     flashBlockedBackspace();
     
@@ -221,24 +264,29 @@ typingArea.addEventListener('keydown', function (e) {
 });
 
 
+
 // popup card
 function showResults() {
   const finalStats = computeStats(true);
-  popupWPM.textContent = "WPM: " + wpmEl.textContent;
-  popupMistakes.textContent = "Mistakes: " + mistakesEl.textContent;
-  popupCPM.textContent = "CPM: " + cpmEl.textContent;  
+  popupWPM.textContent = "WPM: " + finalStats.wpm;
+  popupMistakes.textContent = "Mistakes: " + finalStats.mistakes;
+  popupCPM.textContent = "CPM: " + finalStats.cpm;
   popupAccuracy.textContent = "Accuracy: " + finalStats.accuracy + "%";
+  popupTyped.textContent = "Typed: " + finalStats.typed + " / " + finalStats.total;
 
   resultPopup.classList.remove("hidden");
+
   setTimeout(() => {
     drawTypingChart();
   }, 150);
 }
+
 function saveResult(wpm) {
   let history = JSON.parse(localStorage.getItem("typingHistory")) || [];
   history.push(wpm);
   localStorage.setItem("typingHistory", JSON.stringify(history));
 }
+
 
 
 
@@ -289,19 +337,24 @@ window.addEventListener("keydown", function (e) {
 
 //performance chart
 let typingChartInstance = null;
+
 function drawTypingChart() {
   const canvas = document.getElementById("typingChart");
   if (!canvas) return;
+
   const ctx = canvas.getContext("2d");
+
   const labels = wpmHistory.map((_, i) => i + 1);
-  const errorPoints = errorHistory.map((val, i ) => {
-    if(i === 0) return null;
+
+  const errorPoints = errorHistory.map((val, i) => {
+    if (i === 0) return null;
     return val > errorHistory[i - 1] ? wpmHistory[i] : null;
   });
-  
+
   if (typingChartInstance) {
     typingChartInstance.destroy();
   }
+
   typingChartInstance = new Chart(ctx, {
     type: "line",
     data: {
@@ -318,16 +371,16 @@ function drawTypingChart() {
         },
         {
           label: "Errors",
-          data: errorPoints, 
+          data: errorPoints,
           type: "scatter",
-          pointRadius: 9,
-          borderWidth: 2,
-          pointStyle: "crossRot",
+          pointRadius: 9,     
+          borderWidth: 2,          
+          pointStyle: "crossRot", 
           backgroundColor: "red",
           borderColor: "red"
         }
-        
       ]
+
       
     },
     options: {
